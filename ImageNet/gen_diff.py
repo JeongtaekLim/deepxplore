@@ -14,6 +14,8 @@ import scipy.misc
 
 from configs import bcolors
 from utils import *
+# import ssl
+# ssl._create_default_https_context = ssl._create_unverified_context
 
 # read the parameter
 # argument parsing
@@ -104,16 +106,28 @@ for _ in xrange(args.seeds):
         loss1 = K.mean(model1.get_layer('predictions').output[..., label1])
         loss2 = K.mean(model2.get_layer('predictions').output[..., orig_label])
         loss3 = -args.weight_diff * K.mean(model3.get_layer('fc1000').output[..., orig_label])
+    print("loss1: ", loss1)
+    print("loss2: ", loss2)
+    print("loss3: ", loss3)
     loss1_neuron = K.mean(model1.get_layer(layer_name1).output[..., index1])
     loss2_neuron = K.mean(model2.get_layer(layer_name2).output[..., index2])
     loss3_neuron = K.mean(model3.get_layer(layer_name3).output[..., index3])
     layer_output = (loss1 + loss2 + loss3) + args.weight_nc * (loss1_neuron + loss2_neuron + loss3_neuron)
-
+    print("--------------------")
+    print('layer_output:', layer_output)
     # for adversarial image generation
     final_loss = K.mean(layer_output)
+    print('final_loss:', final_loss)
+    print('final_loss.device:', final_loss.device)
+    print('final_loss.name:', final_loss.name)
+    print('final_loss.shape:', final_loss.shape)
+    print('final_loss.value_index:', final_loss.value_index)
+    print('final_loss.graph:', final_loss.graph)
 
     # we compute the gradient of the input picture wrt this loss
+    print("K.gradients(final_loss, input_tensor): ", K.gradients(final_loss, input_tensor))
     grads = normalize(K.gradients(final_loss, input_tensor)[0])
+
 
     # this function returns the loss and grads given the input picture
     iterate = K.function([input_tensor], [loss1, loss2, loss3, loss1_neuron, loss2_neuron, loss3_neuron, grads])

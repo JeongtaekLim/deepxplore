@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import random
 from collections import defaultdict
 
@@ -9,15 +10,15 @@ from keras_preprocessing import image
 
 
 def preprocess_image(img_path):
-    img = image.load_img(img_path, target_size=(224, 224))
+    img = image.load_img(img_path, target_size=(32, 32))
     input_img_data = image.img_to_array(img)
     input_img_data = np.expand_dims(input_img_data, axis=0)
-    input_img_data = preprocess_input(input_img_data)  # final input shape = (1,224,224,3)
+    input_img_data = preprocess_input(input_img_data)  # final input shape = (1,32,32,3)
     return input_img_data
 
 
 def deprocess_image(x):
-    x = x.reshape((224, 224, 3))
+    x = x.reshape((32, 32, 3))
     # Remove zero-center by mean pixel
     x[:, :, 0] += 103.939
     x[:, :, 1] += 116.779
@@ -29,7 +30,10 @@ def deprocess_image(x):
 
 
 def decode_label(pred):
-    return decode_predictions(pred)[0][0][1]
+    # CIFAR-10 클래스 예측 해석: 예측 배열에서 가장 높은 확률의 인덱스를 반환
+    class_labels = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
+    class_index = np.argmax(pred)
+    return class_labels[class_index]
 
 
 def normalize(x):
@@ -62,14 +66,12 @@ def constraint_black(gradients, rect_shape=(10, 10)):
     return new_grads
 
 
-def init_coverage_tables(model1, model2, model3):
+def init_coverage_tables(model1, model2):
     model_layer_dict1 = defaultdict(bool)
     model_layer_dict2 = defaultdict(bool)
-    model_layer_dict3 = defaultdict(bool)
     init_dict(model1, model_layer_dict1)
     init_dict(model2, model_layer_dict2)
-    init_dict(model3, model_layer_dict3)
-    return model_layer_dict1, model_layer_dict2, model_layer_dict3
+    return model_layer_dict1, model_layer_dict2
 
 
 def init_dict(model, model_layer_dict):
@@ -77,6 +79,7 @@ def init_dict(model, model_layer_dict):
         if 'flatten' in layer.name or 'input' in layer.name:
             continue
         for index in range(layer.output_shape[-1]):
+            name = layer.name.encode('ascii','ignore')
             model_layer_dict[(layer.name, index)] = False
 
 
@@ -128,12 +131,5 @@ def fired(model, layer_name, index, input_data, threshold=0):
     intermediate_layer_output = intermediate_layer_model.predict(input_data)[0]
     scaled = scale(intermediate_layer_output)
     if np.mean(scaled[..., index]) > threshold:
-        return True
-    return False
-
-
-def diverged(predictions1, predictions2, predictions3, target):
-    #     if predictions2 == predictions3 == target and predictions1 != target:
-    if not predictions1 == predictions2 == predictions3:
         return True
     return False

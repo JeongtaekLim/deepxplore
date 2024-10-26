@@ -114,11 +114,16 @@ for _ in xrange(args.seeds):
     loss3_neuron = K.mean(model3.get_layer(layer_name3).output[..., index3])
     layer_output = (loss1 + loss2 + loss3) + args.weight_nc * (loss1_neuron + loss2_neuron + loss3_neuron)
 
+    print("--------------------")
+    print('layer_output:', layer_output)
     # for adversarial image generation
     final_loss = K.mean(layer_output)
+    print('final_loss:', final_loss)
+    print('input_tensor:', input_tensor)
 
     # we compute the gradient of the input picture wrt this loss
     grads = normalize(K.gradients(final_loss, input_tensor)[0])
+    print('grads:', grads)
 
     # this function returns the loss and grads given the input picture
     iterate = K.function([input_tensor], [loss1, loss2, loss3, loss1_neuron, loss2_neuron, loss3_neuron, grads])

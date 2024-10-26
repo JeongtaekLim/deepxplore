@@ -3,3 +3,5 @@
 ./Driving/training
 ./Drebin/dataset
 /Drebin/*.h5
+seeds/
+generated_inputs/

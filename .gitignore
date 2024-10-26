@@ -7,3 +7,4 @@ seeds/
 generated_inputs/
 logs/
 generated_inputs/
+.DS_Store

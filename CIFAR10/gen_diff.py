@@ -35,20 +35,13 @@ img_rows, img_cols = 32, 32
 (_, _), (x_test, _) = cifar10.load_data()
 input_shape = (img_rows, img_cols, 3)
 
-# Define input tensor as a placeholder
+# define input tensor as a placeholder
 input_tensor = Input(shape=input_shape)
 
-# Load multiple CIFAR-10 models
+# load multiple CIFAR-10 models
 K.set_learning_phase(0)
-model1_loaded = load_model('Model1.h5')
-model2_loaded = load_model('Model2.h5')
-
-# Rebuild model1 and model2 with the input_tensor as input
-output1 = model1_loaded(input_tensor)
-output2 = model2_loaded(input_tensor)
-
-model1 = Model(inputs=input_tensor, outputs=output1)
-model2 = Model(inputs=input_tensor, outputs=output2)
+model1 = load_model('Model1.h5')
+model2 = load_model('Model2.h5')
 
 # init coverage table
 model_layer_dict1, model_layer_dict2 = init_coverage_tables(model1, model2)

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import os
-import sys
 import time
 from datetime import datetime
 from keras.layers import GlobalAveragePooling2D, Dense, Dropout, Input
@@ -8,7 +7,7 @@ from keras import optimizers, callbacks
 from keras.models import Model, load_model
 from keras.utils import np_utils
 from keras.datasets import cifar10
-from resnet50_32x32 import ResNet50
+from CIFAR10.resnet50_32x32 import ResNet50
 
 
 def Model2(input_tensor=None, train=False):

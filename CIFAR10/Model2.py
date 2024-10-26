@@ -7,8 +7,7 @@ from keras import optimizers, callbacks
 from keras.models import Model
 from keras.utils import np_utils
 from keras.datasets import cifar10
-from CIFAR10.tmp.resnet50_32x32 import ResNet50
-
+from resnet50_32x32 import ResNet50
 
 def Model2(input_tensor=None, train=False):
     WANNAFASTTRAINING = 0

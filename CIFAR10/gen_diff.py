@@ -4,12 +4,14 @@ from __future__ import print_function
 import argparse
 
 from keras.datasets import cifar10
-from keras.models import load_model
+from keras.models import load_model, clone_model
 from keras.layers import Input
 import scipy.misc
 
 from configs import bcolors
 from utils import *
+from Model1 import Model1
+from Model2 import Model2
 
 # read the parameter
 # argument parsing
@@ -36,12 +38,14 @@ img_rows, img_cols = 32, 32
 input_shape = (img_rows, img_cols, 3)
 
 # define input tensor as a placeholder
+
+# Define a single shared input tensor
 input_tensor = Input(shape=input_shape)
 
-# load multiple CIFAR-10 models
+# Load the original models
 K.set_learning_phase(0)
-model1 = load_model('Model1.h5')
-model2 = load_model('Model2.h5')
+model1 = Model1(input_tensor=input_tensor)
+model2 = Model2(input_tensor=input_tensor)
 
 # init coverage table
 model_layer_dict1, model_layer_dict2 = init_coverage_tables(model1, model2)
@@ -85,24 +89,17 @@ for _ in xrange(args.seeds):
     # construct joint loss function
     if args.target_model == 0:
         loss1 = -args.weight_diff * K.mean(model1.get_layer('output_layer').output[..., orig_label])
-        loss2 = K.mean(model2.get_layer('dense_2').output[..., orig_label])
+        loss2 = K.mean(model2.get_layer('output_layer').output[..., orig_label])
     elif args.target_model == 1:
         loss1 = K.mean(model1.get_layer('output_layer').output[..., orig_label])
-        loss2 = -args.weight_diff * K.mean(model2.get_layer('dense_2').output[..., orig_label])
+        loss2 = -args.weight_diff * K.mean(model2.get_layer('output_layer').output[..., orig_label])
 
     loss1_neuron = K.mean(model1.get_layer(layer_name1).output[..., index1])
     loss2_neuron = K.mean(model2.get_layer(layer_name2).output[..., index2])
     layer_output = (loss1 + loss2) + args.weight_nc * (loss1_neuron + loss2_neuron)
-    print("--------------------")
-    print('layer_output:', layer_output)
     # for adversarial image generation
     final_loss = K.mean(layer_output)
-    # grads = normalize(K.gradients(final_loss, input_tensor)[0])
-    try:
-        # we compute the gradient of the input picture wrt this loss
-        grads = normalize(K.gradients(final_loss, input_tensor)[0])
-    except ValueError:
-        continue
+    grads = normalize(K.gradients(final_loss, input_tensor)[0])
 
     # this function returns the loss and grads given the input picture
     iterate = K.function([input_tensor], [loss1, loss2, loss1_neuron, loss2_neuron, grads])

@@ -1,40 +1,99 @@
 # -*- coding: utf-8 -*-
-import tensorflow as tf
-import numpy as np
-from keras.datasets import cifar10
-from keras.models import Sequential
-from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+import os
+import time
+from datetime import datetime
+from keras.layers import GlobalAveragePooling2D, Dense, Dropout, Input
+from keras import optimizers, callbacks
+from keras.models import Model
 from keras.utils import np_utils
-from keras.callbacks import ModelCheckpoint
+from keras.datasets import cifar10
+from CIFAR10.tmp.resnet50_32x32 import ResNet50
 
-# CIFAR-10 데이터셋 불러오기
-(x_train, y_train), (x_test, y_test) = cifar10.load_data()
 
-# 데이터 전처리
-x_train = x_train.astype('float32') / 255.0
-x_test = x_test.astype('float32') / 255.0
-y_train = np_utils.to_categorical(y_train, 10)
-y_test = np_utils.to_categorical(y_test, 10)
+def Model2(input_tensor=None, train=False):
+    WANNAFASTTRAINING = 0
+    img_width, img_height = 32, 32
+    batch_trainsize = 32
+    batch_testsize = 32
+    nb_epoch = 2
+    learningrate = 1e-3
+    momentum = 0.8
+    num_classes = 10
 
-# CNN 모델 구축
-model = Sequential()
-model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(32, 32, 3)))
-model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Conv2D(64, (3, 3), activation='relu'))
-model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Flatten())
-model.add(Dense(512, activation='relu'))
-model.add(Dropout(0.5))
-model.add(Dense(10, activation='softmax'))
+    if train:
+        (X_train, y_train), (X_test, y_test) = cifar10.load_data()
+        y_train = np_utils.to_categorical(y_train, num_classes)
+        y_test = np_utils.to_categorical(y_test, num_classes)
 
-# 모델 컴파일
-model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+        if WANNAFASTTRAINING == 1:
+            X_train = X_train[:1500]
+            y_train = y_train[:1500]
+            X_test = X_test[:1000]
+            y_test = y_test[:1000]
 
-# 모델 체크포인트 설정
-checkpoint = ModelCheckpoint('cifar10_cnn_model.h5', save_best_only=True, monitor='val_loss', mode='min')
+        input_tensor = Input(shape=(img_width, img_height, 3))
+    elif input_tensor is None:
+        print('you have to provide input_tensor when testing')
+        exit()
 
-# 모델 학습
-model.fit(x_train, y_train, validation_data=(x_test, y_test), epochs=10, batch_size=32, callbacks=[checkpoint])
+    previouslytrainedModelpath = './trained_models/resnet50model1.h5'
 
-# 최종 모델 저장
-model.save('cifar10_final_model.h5')
+    # ResNet50 모델 정의 및 가중치 로드
+    print('Initializing resnet50 model')
+    model = ResNet50(input_tensor=input_tensor, include_top=True, weights='imagenet')
+    x = model.get_layer('res5a_branch2a').input
+    x = GlobalAveragePooling2D(name='avg_pool')(x)
+    x = Dropout(0.5)(x)
+    output_tensor = Dense(num_classes, activation='softmax', name='output_layer')(x)
+    custom_resnet_model = Model(inputs=input_tensor, outputs=output_tensor)
+
+    # 가중치만 로드
+    if os.path.isfile(previouslytrainedModelpath):
+        print('Loading previously trained weights...')
+        custom_resnet_model.load_weights(previouslytrainedModelpath)
+        print(previouslytrainedModelpath + ' weights successfully loaded!')
+    else:
+        print('No previously trained weights found. Training from scratch.')
+
+    for layer in custom_resnet_model.layers:
+        layer.trainable = True
+
+    custom_resnet_model.compile(
+        loss='categorical_crossentropy',
+        optimizer=optimizers.SGD(lr=learningrate, momentum=momentum),
+        metrics=['accuracy']
+    )
+
+    if train:
+        tb = callbacks.TensorBoard(log_dir='./logs', histogram_freq=0, write_graph=True, write_images=True)
+        filepath = "./trained_models/model1_-{epoch:02d}-{val_acc:.2f}_"
+        checkpoint = callbacks.ModelCheckpoint(
+            filepath + datetime.now().strftime('%Y-%m-%d_%H.%M.%S') + '.h5',
+            monitor='val_acc', verbose=1, save_best_only=True, mode='max', period=1
+        )
+
+        t = time.time()
+        custom_resnet_model.fit(
+            X_train, y_train,
+            batch_size=batch_trainsize,
+            epochs=nb_epoch,
+            verbose=1,
+            validation_data=(X_test, y_test),
+            callbacks=[tb, checkpoint]
+        )
+        print('Training time: %s' % (time.time() - t))
+
+        loss, accuracy = custom_resnet_model.evaluate(X_test, y_test, batch_size=batch_testsize, verbose=1)
+        print("[INFO] loss={:.4f}, accuracy: {:.4f}%".format(loss, accuracy * 100))
+
+        custom_resnet_model.save('Model2.h5')
+        print('Model2 saved.')
+    else:
+        custom_resnet_model.load_weights(previouslytrainedModelpath)
+        print('Model2 loaded')
+
+    return custom_resnet_model
+
+
+if __name__ == '__main__':
+    Model2(train=True)

@@ -8,7 +8,7 @@ from keras.preprocessing.image import array_to_img
 (_, _), (x_test, y_test) = cifar10.load_data()
 
 # ./seeds/ 디렉터리 생성
-output_dir = './seeds/'
+output_dir = 'seeds/'
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
